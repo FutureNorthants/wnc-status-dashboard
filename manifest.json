@@ -27,8 +27,8 @@
     {
       "entityId": "statusDashboard",
       "name": "Dashboard",
-      "contentUrl": "https://NEEDTOUPDATEWITHNEWONE.com/dashboard",
-      "websiteUrl": "https://NEEDTOUPDATEWITHNEWONE.com/dashboard",
+      "contentUrl": "http://systemstatus.eu-west-2.elasticbeanstalk.com/dashboard",
+      "websiteUrl": "http://systemstatus.eu-west-2.elasticbeanstalk.com/dashboard",
       "scopes": [
         "personal",
         "team"
@@ -40,6 +40,6 @@
     "messageTeamMembers"
   ],
   "validDomains": [
-    "NEEDTOUPDATEWITHNEWONE.com"
+    "http://systemstatus.eu-west-2.elasticbeanstalk.com"
   ]
 }
