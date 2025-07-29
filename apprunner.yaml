@@ -1,0 +1,18 @@
+version: 1.0
+runtime: nodejs18
+build:
+  commands:
+    build:
+      - echo "Installing dependencies"
+      - npm install --production
+      - echo "Build completed"
+run:
+  runtime-version: 18
+  command: npm start
+  network:
+    port: 3000
+    env:
+      PORT: 3000
+  env:
+    - name: NODE_ENV
+      value: production

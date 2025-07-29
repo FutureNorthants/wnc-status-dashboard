@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WNC System Status Dashboard</title>
+    <script src="https://res.cdn.office.net/teams-js/2.0.0/js/MicrosoftTeams.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f5f5f5;
+            padding: 20px;
+            color: #333;
+            min-height: 100vh;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #6264a7, #464775);
+            color: white;
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 24px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            margin-bottom: 8px;
+        }
+
+        .last-updated {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+
+        .overall-status {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin: 20px 0;
+            padding: 16px;
+            border-radius: 8px;
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        .status-operational {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .status-issues {
+            background-color: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+
+        .status-down {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .services-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .service-card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            border-left: 4px solid #28a745;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .service-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+        }
+
+        .service-card.warning {
+            border-left-color: #ffc107;
+        }
+
+        .service-card.error {
+            border-left-color: #dc3545;
+        }
+
+        .service-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .service-name {
+            font-size: 18px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .status-badge {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .status-operational-badge {
+            background-color: #d4edda;
+            color: #155724;
+        }
+
+        .status-warning-badge {
+            background-color: #fff3cd;
+            color: #856404;
+        }
+
+        .status-error-badge {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+
+        .service-description {
+            color: #666;
+            margin-bottom: 8px;
+            line-height: 1.4;
+        }
+
+        .incident-info {
+            background-color: #f8f9fa;
+            padding: 12px;
+            border-radius: 6px;
+            margin-top: 12px;
+            border-left: 3px solid #dc3545;
+        }
+
+        .incident-title {
+            font-weight: 600;
+            color: #721c24;
+            margin-bottom: 4px;
+        }
+
+        .incident-description {
+            font-size: 14px;
+            color: #666;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+
+        .error-message {
+            background-color: #f8d7da;
+            color: #721c24;
+            padding: 16px;
+            border-radius: 8px;
+            margin: 20px 0;
+            text-align: center;
+        }
+
+        .refresh-button {
+            background: #6264a7;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-top: 16px;
+            transition: background-color 0.2s;
+        }
+
+        .refresh-button:hover {
+            background: #464775;
+        }
+
+        /* Teams Dark Theme Support */
+        body.teams-dark {
+            background-color: #2d2c5d;
+            color: #fff;
+        }
+
+        body.teams-dark .service-card {
+            background: #464775;
+            color: #fff;
+        }
+
+        body.teams-dark .service-name {
+            color: #fff;
+        }
+
+        @media (max-width: 768px) {
+            .services-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            body {
+                padding: 12px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>WNC System Status Dashboard</h1>
+        <div class="last-updated" id="lastUpdated">Loading...</div>
+    </div>
+
+    <div class="overall-status" id="overallStatus">
+        <span>Loading system status...</span>
+    </div>
+
+    <div id="content">
+        <div class="loading">
+            <p>Loading services status...</p>
+        </div>
+    </div>
+
+    <script>
+        class StatusDashboard {
+            constructor() {
+                this.apiUrl = window.location.origin + '/api/status'; // Use same domain as dashboard
+                this.refreshInterval = 30000; // 30 seconds
+                this.services = [];
+                
+                this.init();
+            }
+
+            async init() {
+                // Initialize Microsoft Teams SDK
+                try {
+                    await microsoftTeams.app.initialize();
+                    console.log('Teams SDK initialized');
+                    
+                    // Get Teams context and set theme
+                    microsoftTeams.app.getContext().then(context => {
+                        console.log('Teams context:', context);
+                        this.setTheme(context.app.theme);
+                    });
+
+                    // Listen for theme changes
+                    microsoftTeams.app.registerOnThemeChangeHandler(this.setTheme.bind(this));
+                    
+                } catch (error) {
+                    console.log('Not running in Teams environment, using default theme');
+                }
+
+                // Load initial data
+                await this.loadData();
+                
+                // Set up auto-refresh
+                setInterval(() => this.loadData(), this.refreshInterval);
+            }
+
+            setTheme(theme) {
+                // NEEDS ADJUSTED FOR THE TEAMS THEME !!!
+                document.body.className = '';
+                if (theme === 'dark') {
+                    document.body.classList.add('teams-dark');
+                }
+            }
+
+            async loadData() {
+                try {
+                    console.log('Fetching status from:', this.apiUrl);
+                    const response = await fetch(this.apiUrl, {
+                        method: 'GET',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        }
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+
+                    const data = await response.json();
+                    this.services = data.services || [];
+                    this.renderDashboard();
+                    
+                } catch (error) {
+                    console.error('Failed to load status data:', error);
+                    this.renderError(error.message);
+                }
+            }
+
+            renderDashboard() {
+                const overallStatus = this.calculateOverallStatus();
+                this.renderOverallStatus(overallStatus);
+                this.renderServices();
+                this.updateLastUpdated();
+            }
+
+            calculateOverallStatus() {
+                if (this.services.length === 0) return 'unknown';
+                
+                const hasDown = this.services.some(s => s.status === 'down');
+                const hasIssues = this.services.some(s => s.status === 'degraded' || s.status === 'warning');
+                
+                if (hasDown) return 'down';
+                if (hasIssues) return 'issues';
+                return 'operational';
+            }
+
+            renderOverallStatus(status) {
+                const element = document.getElementById('overallStatus');
+                element.className = 'overall-status';
+                
+                switch (status) {
+                    case 'operational':
+                        element.classList.add('status-operational');
+                        element.innerHTML = 'All Systems Operational';
+                        break;
+                    case 'issues':
+                        element.classList.add('status-issues');
+                        element.innerHTML = 'Some Systems Experiencing Issues';
+                        break;
+                    case 'down':
+                        element.classList.add('status-down');
+                        element.innerHTML = 'System Outage Detected';
+                        break;
+                    default:
+                        element.innerHTML = 'Status Unknown';
+                }
+            }
+
+            renderServices() {
+                const content = document.getElementById('content');
+                
+                if (this.services.length === 0) {
+                    content.innerHTML = '<div class="loading"><p>No services data available</p></div>';
+                    return;
+                }
+
+                const servicesHtml = this.services.map(service => {
+                    const cardClass = this.getCardClass(service.status);
+                    const badgeClass = this.getBadgeClass(service.status);
+                    const statusText = this.getStatusText(service.status);
+                    
+                    return `
+                        <div class="service-card ${cardClass}">
+                            <div class="service-header">
+                                <div class="service-name">${service.name}</div>
+                                <span class="status-badge ${badgeClass}">${statusText}</span>
+                            </div>
+                            <div class="service-description">${service.description || ''}</div>
+                            ${service.incident ? this.renderIncident(service.incident) : ''}
+                        </div>
+                    `;
+                }).join('');
+
+                content.innerHTML = `
+                    <div class="services-grid">
+                        ${servicesHtml}
+                    </div>
+                `;
+            }
+
+            renderIncident(incident) {
+                return `
+                    <div class="incident-info">
+                        <div class="incident-title">${incident.title}</div>
+                        <div class="incident-description">${incident.description}</div>
+                    </div>
+                `;
+            }
+
+            getCardClass(status) {
+                switch (status) {
+                    case 'down': case 'error': return 'error';
+                    case 'degraded': case 'warning': return 'warning';
+                    default: return '';
+                }
+            }
+
+            getBadgeClass(status) {
+                switch (status) {
+                    case 'down': case 'error': return 'status-error-badge';
+                    case 'degraded': case 'warning': return 'status-warning-badge';
+                    default: return 'status-operational-badge';
+                }
+            }
+
+            getStatusText(status) {
+                switch (status) {
+                    case 'up': case 'operational': return 'Operational';
+                    case 'down': case 'error': return 'Down';
+                    case 'degraded': return 'Degraded';
+                    case 'warning': return 'Issues';
+                    default: return 'Unknown';
+                }
+            }
+
+            renderError(message) {
+                const content = document.getElementById('content');
+                content.innerHTML = `
+                    <div class="error-message">
+                        <p>Failed to load status data: ${message}</p>
+                        <button class="refresh-button" onclick="dashboard.loadData()">
+                            Retry
+                        </button>
+                    </div>
+                `;
+            }
+
+            updateLastUpdated() {
+                const element = document.getElementById('lastUpdated');
+                element.textContent = `Last updated: ${new Date().toLocaleTimeString()}`;
+            }
+        }
+
+        // Initialize dashboard
+        const dashboard = new StatusDashboard();
+    </script>
+</body>
+</html>

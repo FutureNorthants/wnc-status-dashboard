@@ -1,0 +1,45 @@
+{
+  "$schema": "https://developer.microsoft.com/en-us/json-schemas/teams/v1.16/MicrosoftTeams.schema.json",
+  "manifestVersion": "1.16",
+  "version": "1.0.0",
+  "id": "f47ac10b-58cc-4372-a567-0e02b2c3d470",
+  "packageName": "com.wnc.statusdashboard",
+  "developer": {
+    "name": "West Northamptonshire Council",
+    "websiteUrl": "https://westnorthants.gov.uk",
+    "privacyUrl": "https://westnorthants.gov.uk/privacy",
+    "termsOfUseUrl": "https://westnorthants.gov.uk/terms"
+  },
+  "icons": {
+    "color": "color.png",
+    "outline": "outline.png"
+  },
+  "name": {
+    "short": "WNC Status",
+    "full": "WNC System Status Dashboard"
+  },
+  "description": {
+    "short": "Monitor WNC system and API status",
+    "full": "Real-time dashboard showing the status of West Northamptonshire Council systems and APIs with incident details"
+  },
+  "accentColor": "#6264a7",
+  "staticTabs": [
+    {
+      "entityId": "statusDashboard",
+      "name": "Dashboard",
+      "contentUrl": "https://NEEDTOUPDATEWITHNEWONE.com/dashboard",
+      "websiteUrl": "https://NEEDTOUPDATEWITHNEWONE.com/dashboard",
+      "scopes": [
+        "personal",
+        "team"
+      ]
+    }
+  ],
+  "permissions": [
+    "identity",
+    "messageTeamMembers"
+  ],
+  "validDomains": [
+    "NEEDTOUPDATEWITHNEWONE.com"
+  ]
+}
