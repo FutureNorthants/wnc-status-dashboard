@@ -9,61 +9,17 @@ const PORT = process.env.PORT || 3000;
 // Middleware
 app.use(cors());
 app.use(express.json());
-app.use(express.static('public')); // Serve static files from public folder
+app.use(express.static('public'));
 
 // Wormly API configuration
 const WORMLY_API_KEY = process.env.WORMLY_API_KEY;
 const WORMLY_BASE_URL = 'https://api.wormly.com/';
 
-// Service mapping - Wormly host IDs
-const SERVICE_MAPPING = {
-    '107401': {
-        name: 'API - Coroners',
-        description: 'Coroners API service',
-        id: 'api-coroners'
-    },
-    '68843': {
-        name: 'API - NBC Collection Details',
-        description: 'NBC collection details API',
-        id: 'api-nbc-collection'
-    },
-    '89703': {
-        name: 'Blue Badge Application',
-        description: 'Blue Badge application system',
-        id: 'app-blue-badge'
-    },
-    '89705': {
-        name: 'Firmstep Application',
-        description: 'Firmstep application system',
-        id: 'app-firmstep'
-    },
-    '82156': {
-        name: 'WNC Main Website',
-        description: 'West Northamptonshire Council main website',
-        id: 'wnc-website'
-    },
-    '67371': {
-        name: 'WNC Northampton Website',
-        description: 'WNC Northampton area website',
-        id: 'wnc-northampton'
-    },
-    '70744': {
-        name: 'Bin Details API',
-        description: 'NBC bin collection details API',
-        id: 'api-bin-details'
-    },
-    '67417': {
-        name: 'Veolia Echo Live',
-        description: 'Veolia waste management system',
-        id: 'veolia-echo'
-    }
-};
-
 // Helper function to convert Wormly status to format
 function convertWormlyStatus(host) {
     // Check if monitoring is enabled
     if (!host.uptimemonitored) {
-        return 'warning'; // Monitoring disabled
+        return 'warning';
     }
     
     // Check for uptime errors
@@ -83,16 +39,72 @@ function convertWormlyStatus(host) {
 // Helper function to get last check time
 function getLastCheckTime(host) {
     if (host.lastuptimecheck) {
-        // Convert Unix timestamp to ISO string
         return new Date(host.lastuptimecheck * 1000).toISOString();
     }
     return new Date().toISOString();
 }
 
-// Helper function to fetch data
+// Helper function to clean up service names
+function cleanServiceName(name, hostname) {
+    // Try to use name first, then hostname, then fallback
+    let serviceName = name || hostname || 'Unknown Service';
+    
+    // Clean up common URL patterns
+    serviceName = serviceName
+        .replace(/^(https?:\/\/)?(www\.)?/, '')
+        .replace(/\/$/, '')
+        .replace(/\.(com|co\.uk|org|net)$/, '')
+        .trim();
+    
+    // If it's still a domain-like string, try to extract a meaningful name
+    if (serviceName.includes('.')) {
+        const parts = serviceName.split('.');
+        serviceName = parts[0];
+    }
+    
+    // Capitalize first letter and clean up
+    return serviceName.charAt(0).toUpperCase() + serviceName.slice(1);
+}
+
+// Helper function to generate service description
+function generateDescription(host) {
+    const parts = [];
+    
+    // Add hostname if available and different from name
+    if (host.hostname && host.hostname !== host.name) {
+        parts.push(`Host: ${host.hostname}`);
+    }
+    
+    // Add monitoring info
+    const monitoringTypes = [];
+    if (host.uptimemonitored) {
+        monitoringTypes.push('Uptime');
+    }
+    if (host.healthmonitored) {
+        monitoringTypes.push('Health');
+    }
+    if (monitoringTypes.length > 0) {
+        parts.push(`${monitoringTypes.join(' & ')} monitored`);
+    }
+    
+    return parts.length > 0 ? parts.join(' • ') : 'Monitored service';
+}
+
+// Helper function to generate clean service ID
+function generateServiceId(hostId, name, hostname) {
+    // Create a clean ID based on name or hostname
+    const baseName = (name || hostname || `service-${hostId}`)
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, '-') // Replace non-alphanumeric with dashes
+        .replace(/-+/g, '-') // Replace multiple dashes with single dash
+        .replace(/^-|-$/g, ''); // Remove leading/trailing dashes
+    
+    return `${baseName}-${hostId}`;
+}
+
+// Helper function to fetch data - creates everything from API
 async function fetchWormlyData() {
     try {
-        // getting host status
         const apiUrl = `${WORMLY_BASE_URL}?key=${WORMLY_API_KEY}&response=json&cmd=getHostStatus`;
         
         console.log('Fetching from Wormly API...');
@@ -108,23 +120,24 @@ async function fetchWormlyData() {
         for (const host of hosts) {
             const hostId = host.hostid.toString();
             
-            // Skip if not in our service mapping
-            if (!SERVICE_MAPPING[hostId]) {
-                continue; // Only process mapped services
-            }
-
-            const serviceConfig = SERVICE_MAPPING[hostId];
+            // Generate everything dynamically from Wormly data
+            const serviceName = cleanServiceName(host.name, host.hostname);
+            const serviceDescription = generateDescription(host);
+            const serviceId = generateServiceId(hostId, host.name, host.hostname);
             const status = convertWormlyStatus(host);
             
             const service = {
-                id: serviceConfig.id,
-                name: serviceConfig.name,
-                description: serviceConfig.description,
+                id: serviceId,
+                name: serviceName,
+                description: serviceDescription,
                 status: status,
-                response_time: null, // Wormly does not provide this in getHostStatus - chec
+                response_time: null,
                 uptime_percentage: calculateUptimePercentage(host),
                 last_checked: getLastCheckTime(host),
-                incident: null
+                incident: null,
+                wormly_host_id: hostId,
+                raw_name: host.name, // Keep original for debugging
+                raw_hostname: host.hostname // Keep original for debugging
             };
 
             // Add incident info if service is down or has any warnings
@@ -135,7 +148,12 @@ async function fetchWormlyData() {
             services.push(service);
         }
 
-        console.log(`Found ${services.length} mapped services out of ${hosts.length} total hosts`);
+        // Sort services by name for consistent display
+        services.sort((a, b) => a.name.localeCompare(b.name));
+
+        console.log(`Found ${services.length} services from Wormly (all dynamically generated)`);
+        console.log(`Service names: ${services.map(s => s.name).join(', ')}`);
+        
         return services;
         
     } catch (error) {
@@ -144,7 +162,7 @@ async function fetchWormlyData() {
     }
 }
 
-// Helper function to calculate uptime percentage (simplified-changed for testing)
+// Helper function to calculate uptime percentage
 function calculateUptimePercentage(host) {
     if (!host.uptimemonitored) {
         return 0;
@@ -221,7 +239,13 @@ app.get('/api/status', async (req, res) => {
         const response = {
             timestamp: new Date().toISOString(),
             overall_status: overallStatus,
-            services: services
+            services: services,
+            stats: {
+                total_services: services.length,
+                operational: services.filter(s => s.status === 'operational').length,
+                warning: services.filter(s => s.status === 'warning').length,
+                down: services.filter(s => s.status === 'down').length
+            }
         };
 
         console.log(`Returning status for ${services.length} services`);
@@ -251,8 +275,13 @@ app.get('/api/wormly-raw', async (req, res) => {
         res.json({
             url_used: apiUrl.replace(WORMLY_API_KEY, 'HIDDEN'),
             wormly_response: response.data,
-            mapped_services: Object.keys(SERVICE_MAPPING).length,
-            available_hostids: response.data.status ? response.data.status.map(h => `${h.hostid}: ${h.name}`) : []
+            total_hosts: response.data.status ? response.data.status.length : 0,
+            available_hosts: response.data.status ? response.data.status.map(h => ({
+                id: h.hostid,
+                name: h.name || 'No name',
+                hostname: h.hostname || 'No hostname',
+                generated_name: h.name || h.hostname || `Service ${h.hostid}`
+            })) : []
         });
         
     } catch (error) {
@@ -269,7 +298,7 @@ app.get('/health', (req, res) => {
         status: 'healthy', 
         timestamp: new Date().toISOString(),
         wormly_key_configured: !!WORMLY_API_KEY,
-        mapped_services_count: Object.keys(SERVICE_MAPPING).length
+        mode: 'fully_dynamic'
     });
 });
 
@@ -291,11 +320,12 @@ app.listen(PORT, () => {
     console.log(`Health check: http://localhost:${PORT}/health`);
     
     if (!WORMLY_API_KEY) {
-        console.warn('⚠️  WORMLY_API_KEY environment variable not set!');
-        console.warn('   Add it to your .env file: WORMLY_API_KEY=your_key_here');
+        console.warn('WORMLY_API_KEY environment variable not set!');
+        console.warn('Add it to your .env file: WORMLY_API_KEY=your_key_here');
     } else {
         console.log('Wormly API key is configured');
-        console.log(`Monitoring ${Object.keys(SERVICE_MAPPING).length} services`);
+        console.log('FULLY DYNAMIC MODE: All services auto-generated from Wormly API');
+        console.log('Service names, descriptions, and IDs created automatically');
     }
 });
 

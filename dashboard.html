@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>WNC System Status Dashboard</title>
     <script src="https://res.cdn.office.net/teams-js/2.0.0/js/MicrosoftTeams.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
     <style>
         * {
             margin: 0;
@@ -13,281 +14,785 @@
         }
 
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: #f5f5f5;
-            padding: 20px;
-            color: #333;
-            min-height: 100vh;
+            font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, sans-serif;
+            background: #f5f5f7;
+            color: #1d1d1f;
+            line-height: 1.5;
+            overflow-x: hidden;
         }
 
-        .header {
-            background: linear-gradient(135deg, #6264a7, #464775);
+        :root {
+            /* WNC Brand Colors */
+            --wnc-blue: #0066cc;
+            --wnc-green: #228B22;
+            --wnc-red: #dc2626;
+            --wnc-blue-light: #3399ff;
+            --wnc-green-light: #32cd32;
+            --wnc-red-light: #f87171;
+        }
+
+        .hero-section {
+            background: linear-gradient(135deg, #1a365d 0%, #2d3748 100%);
             color: white;
-            padding: 20px;
-            border-radius: 12px;
+            text-align: center;
+            padding: 50px 20px 60px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .theme-toggle {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 50px;
+            padding: 8px 16px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            z-index: 10;
+        }
+
+        .theme-toggle:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: translateY(-2px);
+        }
+
+        .theme-icon {
+            width: 16px;
+            height: 16px;
+            transition: transform 0.3s ease;
+        }
+
+        .hero-section::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: radial-gradient(circle at 30% 20%, rgba(255,255,255,0.1) 0%, transparent 50%),
+                        radial-gradient(circle at 80% 80%, rgba(255,255,255,0.05) 0%, transparent 50%);
+        }
+
+        .hero-content {
+            position: relative;
+            z-index: 1;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .hero-title {
+            font-size: clamp(2.5rem, 5vw, 4rem);
+            font-weight: 700;
+            margin-bottom: 16px;
+            letter-spacing: -0.02em;
+        }
+
+        .hero-subtitle {
+            font-size: 1.25rem;
+            font-weight: 400;
+            opacity: 0.9;
+            margin-bottom: 32px;
+        }
+
+        .status-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 50px;
+            padding: 12px 24px;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #34d399;
+            animation: pulse-dot 2s infinite;
+        }
+
+        @keyframes pulse-dot {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.7; transform: scale(1.1); }
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+
+        .section {
+            margin: 60px 0;
+        }
+
+        .section-title {
+            font-size: 2rem;
+            font-weight: 600;
+            text-align: center;
+            margin-bottom: 48px;
+            color: #1d1d1f;
+            letter-spacing: -0.01em;
+        }
+
+        /* Issues Alert Box - Fixed positioning */
+        .issues-alert {
+            background: linear-gradient(135deg, var(--wnc-red-light), var(--wnc-red));
+            color: white;
+            border-radius: 20px;
+            padding: 24px;
+            margin: 32px 0 24px;
+            box-shadow: 0 8px 32px rgba(220, 38, 38, 0.3);
+            display: none;
+        }
+
+        .issues-alert.show {
+            display: block;
+        }
+
+        .issues-alert h3 {
+            font-size: 1.2rem;
+            font-weight: 700;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .issues-links {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .issue-link {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            text-decoration: none;
+            padding: 8px 16px;
+            border-radius: 50px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .issue-link:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: translateY(-2px);
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 10px;
+            margin: 0 0 60px;
+            justify-content: center;
+        }
+
+        .stat-card {
+            background: white;
+            border-radius: 20px;
+            padding: 32px 24px;
+            text-align: center;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+            border: 1px solid rgba(0, 0, 0, 0.05);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, var(--wnc-green), var(--wnc-blue));
+            transform: scaleX(0);
+            transition: transform 0.3s ease;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.12);
+        }
+
+        .stat-card:hover::before {
+            transform: scaleX(1);
+        }
+
+        .stat-number {
+            font-size: 3rem;
+            font-weight: 700;
+            margin-bottom: 8px;
+            background: linear-gradient(135deg, var(--wnc-blue), var(--wnc-green));
+            background-clip: text;
+            -webkit-background-clip: text;
+            color: transparent;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .stat-number.warning {
+            background: linear-gradient(135deg, #f59e0b, #d97706);
+            background-clip: text;
+            -webkit-background-clip: text;
+            color: transparent;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .stat-number.down {
+            background: linear-gradient(135deg, var(--wnc-red), #dc2626);
+            background-clip: text;
+            -webkit-background-clip: text;
+            color: transparent;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .stat-label {
+            font-size: 0.9rem;
+            color: #86868b;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .charts-section {
+            background: white;
+            border-radius: 24px;
+            padding: 48px 32px;
+            margin: 60px 0;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+            border: 1px solid rgba(0, 0, 0, 0.05);
+        }
+
+        .charts-grid {
+            display: grid;
+            grid-template-columns: 1fr 2fr; /* Donut 1/3, Uptime 2/3 */
+            gap: 60px;
+        }
+
+        .chart-container {
+            position: relative;
+        }
+
+        .chart-title {
+            font-size: 1.3rem;
+            font-weight: 600;
             margin-bottom: 24px;
+            color: #1d1d1f;
             text-align: center;
         }
 
-        .header h1 {
-            font-size: 28px;
-            margin-bottom: 8px;
+        .chart-wrapper {
+            position: relative;
         }
 
-        .last-updated {
-            font-size: 14px;
-            opacity: 0.9;
+        .chart-wrapper.donut {
+            height: 300px;
         }
 
-        .overall-status {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            margin: 20px 0;
-            padding: 16px;
-            border-radius: 8px;
-            font-size: 18px;
-            font-weight: 600;
-        }
-
-        .status-operational {
-            background-color: #d4edda;
-            color: #155724;
-            border: 1px solid #c3e6cb;
-        }
-
-        .status-issues {
-            background-color: #fff3cd;
-            color: #856404;
-            border: 1px solid #ffeaa7;
-        }
-
-        .status-down {
-            background-color: #f8d7da;
-            color: #721c24;
-            border: 1px solid #f5c6cb;
+        .chart-wrapper.uptime {
+            height: 500px; /* Taller for vertical layout */
         }
 
         .services-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 20px;
-            margin-bottom: 30px;
+            grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
+            gap: 24px;
         }
 
         .service-card {
             background: white;
-            border-radius: 12px;
-            padding: 20px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-            border-left: 4px solid #28a745;
-            transition: transform 0.2s, box-shadow 0.2s;
+            border-radius: 20px;
+            padding: 32px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+            border: 1px solid rgba(0, 0, 0, 0.05);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
         }
 
         .service-card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+            transform: translateY(-4px);
+            box-shadow: 0 12px 32px rgba(0, 0, 0, 0.12);
         }
 
+        /* Enhanced borders for error/warning cards */
         .service-card.warning {
-            border-left-color: #ffc107;
+            border: 2px solid #f59e0b;
+            box-shadow: 0 4px 20px rgba(245, 158, 11, 0.2);
+        }
+
+        .service-card.warning:hover {
+            box-shadow: 0 12px 32px rgba(245, 158, 11, 0.3);
         }
 
         .service-card.error {
-            border-left-color: #dc3545;
+            border: 2px solid var(--wnc-red);
+            box-shadow: 0 4px 20px rgba(220, 38, 38, 0.2);
+        }
+
+        .service-card.error:hover {
+            box-shadow: 0 12px 32px rgba(220, 38, 38, 0.3);
         }
 
         .service-header {
             display: flex;
             justify-content: space-between;
-            align-items: center;
-            margin-bottom: 12px;
+            align-items: flex-start;
+            margin-bottom: 24px;
         }
 
-        .service-name {
-            font-size: 18px;
+        .service-info h3 {
+            font-size: 1.3rem;
             font-weight: 600;
-            color: #333;
+            color: #1d1d1f;
+            margin-bottom: 4px;
+            letter-spacing: -0.01em;
         }
 
-        .status-badge {
-            padding: 4px 12px;
-            border-radius: 20px;
-            font-size: 12px;
-            font-weight: 600;
-            text-transform: uppercase;
-        }
-
-        .status-operational-badge {
-            background-color: #d4edda;
-            color: #155724;
-        }
-
-        .status-warning-badge {
-            background-color: #fff3cd;
-            color: #856404;
-        }
-
-        .status-error-badge {
-            background-color: #f8d7da;
-            color: #721c24;
-        }
-
-        .service-description {
-            color: #666;
-            margin-bottom: 8px;
+        .service-info p {
+            color: #86868b;
+            font-size: 0.9rem;
             line-height: 1.4;
         }
 
-        .incident-info {
-            background-color: #f8f9fa;
-            padding: 12px;
-            border-radius: 6px;
-            margin-top: 12px;
-            border-left: 3px solid #dc3545;
+        .status-badge {
+            padding: 8px 16px;
+            border-radius: 50px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border: none;
+            position: relative;
+            overflow: hidden;
         }
 
-        .incident-title {
-            font-weight: 600;
-            color: #721c24;
+        .status-operational {
+            background: linear-gradient(135deg, var(--wnc-green-light), var(--wnc-green));
+            color: white;
+        }
+
+        .status-warning {
+            background: linear-gradient(135deg, #fbbf24, #f59e0b);
+            color: white;
+        }
+
+        .status-error {
+            background: linear-gradient(135deg, var(--wnc-red-light), var(--wnc-red));
+            color: white;
+        }
+
+        .service-metrics {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+            margin: 24px 0;
+        }
+
+        .metric {
+            text-align: center;
+            padding: 20px 16px;
+            background: #f9f9f9;
+            border-radius: 16px;
+            transition: all 0.2s ease;
+        }
+
+        .metric:hover {
+            background: #f0f0f0;
+            transform: translateY(-2px);
+        }
+
+        .metric-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #1d1d1f;
             margin-bottom: 4px;
         }
 
+        .metric-label {
+            font-size: 0.8rem;
+            color: #86868b;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+
+        /* Enhanced incident alerts */
+        .incident-alert {
+            background: linear-gradient(135deg, var(--wnc-red), #dc2626);
+            color: white;
+            border-radius: 16px;
+            padding: 24px;
+            margin-top: 24px;
+            box-shadow: 0 8px 24px rgba(220, 38, 38, 0.3);
+            border: 2px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .incident-title {
+            font-weight: 700;
+            font-size: 1.1rem;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
         .incident-description {
-            font-size: 14px;
-            color: #666;
+            font-size: 0.95rem;
+            line-height: 1.5;
+            opacity: 0.95;
         }
 
         .loading {
             text-align: center;
-            padding: 40px;
-            color: #666;
+            padding: 80px 20px;
+            color: #86868b;
+        }
+
+        .loading-spinner {
+            width: 32px;
+            height: 32px;
+            border: 3px solid #f0f0f0;
+            border-top: 3px solid var(--wnc-blue);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
         }
 
         .error-message {
-            background-color: #f8d7da;
-            color: #721c24;
-            padding: 16px;
-            border-radius: 8px;
-            margin: 20px 0;
+            background: linear-gradient(135deg, #fee2e2, #fecaca);
+            border: 1px solid var(--wnc-red-light);
+            color: #991b1b;
+            padding: 32px;
+            border-radius: 20px;
+            margin: 40px 0;
             text-align: center;
         }
 
-        .refresh-button {
-            background: #6264a7;
+        .retry-button {
+            background: linear-gradient(135deg, var(--wnc-blue), var(--wnc-green));
             color: white;
             border: none;
-            padding: 12px 24px;
-            border-radius: 6px;
+            padding: 12px 32px;
+            border-radius: 50px;
             cursor: pointer;
-            font-size: 14px;
+            font-size: 0.9rem;
+            font-weight: 600;
             margin-top: 16px;
-            transition: background-color 0.2s;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
 
-        .refresh-button:hover {
-            background: #464775;
+        .retry-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(0, 102, 204, 0.4);
         }
 
-        /* Teams Dark Theme Support */
-        body.teams-dark {
-            background-color: #2d2c5d;
-            color: #fff;
+        .last-check {
+            font-size: 0.8rem;
+            color: #86868b;
+            text-align: center;
+            margin-top: 16px;
+            padding-top: 16px;
+            border-top: 1px solid #f0f0f0;
         }
 
-        body.teams-dark .service-card {
-            background: #464775;
-            color: #fff;
+        /* Dark theme classes - manual toggle */
+        body.dark-theme {
+            background: #000000;
+            color: #f5f5f7;
         }
 
-        body.teams-dark .service-name {
-            color: #fff;
+        body.dark-theme .hero-section {
+            background: linear-gradient(135deg, #0f1419 0%, #1a202c 100%);
+        }
+
+        body.dark-theme .service-card,
+        body.dark-theme .stat-card,
+        body.dark-theme .charts-section {
+            background: #1d1d1f;
+            border-color: rgba(255, 255, 255, 0.1);
+            box-shadow: 0 4px 20px rgba(255, 255, 255, 0.05);
+        }
+
+        body.dark-theme .service-info h3,
+        body.dark-theme .section-title {
+            color: #f5f5f7;
+        }
+
+        body.dark-theme .metric {
+            background: #2d2d2f;
+        }
+
+        body.dark-theme .metric:hover {
+            background: #3d3d3f;
+        }
+
+        body.dark-theme .metric-value {
+            color: #f5f5f7;
+        }
+
+        body.dark-theme .chart-title {
+            color: #f5f5f7;
+        }
+
+        body.dark-theme .service-card.warning {
+            border-color: #f59e0b;
+        }
+
+        body.dark-theme .service-card.error {
+            border-color: var(--wnc-red-light);
+        }
+
+        /* Responsive design */
+        @media (max-width: 1024px) {
+            .charts-grid {
+                grid-template-columns: 1fr;
+                gap: 40px;
+            }
+            
+            .chart-wrapper.uptime {
+                height: 400px;
+            }
         }
 
         @media (max-width: 768px) {
+            .hero-section {
+                padding: 60px 20px 40px;
+            }
+
+            .theme-toggle {
+                top: 16px;
+                right: 16px;
+                padding: 6px 12px;
+                font-size: 12px;
+            }
+
+            .theme-icon {
+                width: 14px;
+                height: 14px;
+            }
+
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 16px;
+            }
+
+            .charts-grid {
+                grid-template-columns: 1fr;
+                gap: 32px;
+            }
+
             .services-grid {
                 grid-template-columns: 1fr;
             }
-            
-            body {
-                padding: 12px;
+
+            .service-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 12px;
+            }
+
+            .service-metrics {
+                grid-template-columns: 1fr;
+                gap: 12px;
+            }
+
+            .charts-section {
+                padding: 32px 20px;
+            }
+
+            .chart-wrapper.donut {
+                height: 250px;
+            }
+
+            .chart-wrapper.uptime {
+                height: 350px;
+            }
+
+            .issues-links {
+                flex-direction: column;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .stat-card {
+                padding: 24px 16px;
+            }
+
+            .service-card {
+                padding: 24px;
             }
         }
     </style>
 </head>
 <body>
-    <div class="header">
-        <h1>WNC System Status Dashboard</h1>
-        <div class="last-updated" id="lastUpdated">Loading...</div>
+    <!-- Hero Section -->
+    <div class="hero-section">
+        <div class="theme-toggle" id="themeToggle">
+            <span class="theme-icon" id="themeIcon">🌙</span>
+            <span id="themeText">Dark</span>
+        </div>
+        <div class="hero-content">
+            <h1 class="hero-title">System Status</h1>
+            <p class="hero-subtitle">Real-time monitoring of all services</p>
+            <div class="status-pill" id="statusPill">
+                <div class="status-dot"></div>
+                <span id="lastUpdated">Loading...</span>
+            </div>
+        </div>
     </div>
 
-    <div class="overall-status" id="overallStatus">
-        <span>Loading system status...</span>
-    </div>
+    <div class="container">
+        <!-- Issues Alert Box -->
+        <div class="issues-alert" id="issuesAlert">
+            <h3>⚠️ Services Requiring Attention</h3>
+            <div class="issues-links" id="issuesLinks">
+                <!-- Links will be populated by JavaScript -->
+            </div>
+        </div>
 
-    <div id="content">
-        <div class="loading">
-            <p>Loading services status...</p>
+        <!-- Stats Section -->
+        <div class="stats-grid" id="statsGrid">
+            <!-- Stats will be populated by JavaScript -->
+        </div>
+
+        <!-- Charts Section -->
+        <div class="charts-section">
+            <h2 class="section-title">Overview</h2>
+            <div class="charts-grid">
+                <div class="chart-container">
+                    <h3 class="chart-title">Service Status Distribution</h3>
+                    <div class="chart-wrapper donut">
+                        <canvas id="statusChart"></canvas>
+                    </div>
+                </div>
+                <div class="chart-container">
+                    <h3 class="chart-title">Uptime Performance</h3>
+                    <div class="chart-wrapper uptime">
+                        <canvas id="uptimeChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Services Section -->
+        <div class="section">
+            <h2 class="section-title">Service Details</h2>
+            <div id="content">
+                <div class="loading">
+                    <div class="loading-spinner"></div>
+                    <p>Loading services status...</p>
+                </div>
+            </div>
         </div>
     </div>
 
     <script>
-        class StatusDashboard {
+        class EnhancedStatusDashboard {
             constructor() {
-                this.apiUrl = window.location.origin + '/api/status'; // Use same domain as dashboard
+                this.apiUrl = window.location.origin + '/api/status';
                 this.refreshInterval = 30000; // 30 seconds
                 this.services = [];
+                this.statusChart = null;
+                this.uptimeChart = null;
+                this.isDarkTheme = false; // Default to light theme
                 
                 this.init();
             }
 
             async init() {
-                // Initialize Microsoft Teams SDK
                 try {
                     await microsoftTeams.app.initialize();
-                    console.log('Teams SDK initialized');
                     
-                    // Get Teams context and set theme
                     microsoftTeams.app.getContext().then(context => {
-                        console.log('Teams context:', context);
                         this.setTheme(context.app.theme);
                     });
 
-                    // Listen for theme changes
                     microsoftTeams.app.registerOnThemeChangeHandler(this.setTheme.bind(this));
                     
                 } catch (error) {
-                    console.log('Not running in Teams environment, using default theme');
+                    console.log('Not running in Teams environment');
                 }
 
-                // Load initial data
+                // Initialize theme toggle after DOM is ready
+                this.initThemeToggle();
+
                 await this.loadData();
-                
-                // Set up auto-refresh
                 setInterval(() => this.loadData(), this.refreshInterval);
             }
 
-            setTheme(theme) {
-                // NEEDS ADJUSTED FOR THE TEAMS THEME !!!
-                document.body.className = '';
-                if (theme === 'dark') {
-                    document.body.classList.add('teams-dark');
+            initThemeToggle() {
+                const themeToggle = document.getElementById('themeToggle');
+                if (themeToggle) {
+                    themeToggle.addEventListener('click', () => {
+                        this.toggleTheme();
+                    });
+                } else {
+                    // Try again after a short delay if element not found
+                    setTimeout(() => {
+                        this.initThemeToggle();
+                    }, 100);
                 }
+            }
+
+            toggleTheme() {
+                this.isDarkTheme = !this.isDarkTheme;
+                const body = document.body;
+                const themeIcon = document.getElementById('themeIcon');
+                const themeText = document.getElementById('themeText');
+
+                if (this.isDarkTheme) {
+                    body.classList.add('dark-theme');
+                    if (themeIcon) themeIcon.textContent = '☀️';
+                    if (themeText) themeText.textContent = 'Light';
+                } else {
+                    body.classList.remove('dark-theme');
+                    if (themeIcon) themeIcon.textContent = '🌙';
+                    if (themeText) themeText.textContent = 'Dark';
+                }
+
+                // Re-render charts with new theme colors if they exist
+                if (this.statusChart || this.uptimeChart) {
+                    setTimeout(() => {
+                        this.renderCharts();
+                    }, 100);
+                }
+            }
+
+            setTheme(theme) {
+                // Theme handling for Teams integration - but don't auto-apply
+                // Let the user manually toggle instead
+                console.log('Teams theme detected:', theme);
             }
 
             async loadData() {
                 try {
-                    console.log('Fetching status from:', this.apiUrl);
-                    const response = await fetch(this.apiUrl, {
-                        method: 'GET',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        }
-                    });
-
-                    if (!response.ok) {
-                        throw new Error(`HTTP error! status: ${response.status}`);
-                    }
+                    const response = await fetch(this.apiUrl);
+                    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
 
                     const data = await response.json();
                     this.services = data.services || [];
@@ -300,84 +805,278 @@
             }
 
             renderDashboard() {
-                const overallStatus = this.calculateOverallStatus();
-                this.renderOverallStatus(overallStatus);
+                this.renderIssuesAlert();
+                this.renderStats();
+                this.renderCharts();
                 this.renderServices();
                 this.updateLastUpdated();
             }
 
-            calculateOverallStatus() {
-                if (this.services.length === 0) return 'unknown';
+            renderIssuesAlert() {
+                const issuesServices = this.services.filter(s => s.status !== 'operational');
+                const alertBox = document.getElementById('issuesAlert');
+                const linksContainer = document.getElementById('issuesLinks');
+                const statsGrid = document.getElementById('statsGrid');
+
+                console.log('Issues found:', issuesServices.length);
+
+                if (issuesServices.length === 0) {
+                    alertBox.classList.remove('show');
+                    if (statsGrid) {
+                        statsGrid.classList.remove('has-issues');
+                        console.log('Removed has-issues class');
+                    }
+                    return;
+                }
+
+                alertBox.classList.add('show');
+                if (statsGrid) {
+                    statsGrid.classList.add('has-issues');
+                    console.log('Added has-issues class to statsGrid');
+                }
                 
-                const hasDown = this.services.some(s => s.status === 'down');
-                const hasIssues = this.services.some(s => s.status === 'degraded' || s.status === 'warning');
-                
-                if (hasDown) return 'down';
-                if (hasIssues) return 'issues';
-                return 'operational';
+                const links = issuesServices.map(service => {
+                    const serviceId = this.generateServiceId(service.name);
+                    return `<a href="#${serviceId}" class="issue-link">${service.name}</a>`;
+                }).join('');
+
+                linksContainer.innerHTML = links;
             }
 
-            renderOverallStatus(status) {
-                const element = document.getElementById('overallStatus');
-                element.className = 'overall-status';
+            generateServiceId(name) {
+                return name.toLowerCase()
+                    .replace(/[^a-z0-9]/g, '-')
+                    .replace(/-+/g, '-')
+                    .replace(/^-|-$/g, '');
+            }
+
+            renderStats() {
+                const operational = this.services.filter(s => s.status === 'operational').length;
+                const warning = this.services.filter(s => s.status === 'warning' || s.status === 'degraded').length;
+                const down = this.services.filter(s => s.status === 'down').length;
+                const avgUptime = this.services.reduce((acc, s) => acc + (s.uptime_percentage || 0), 0) / this.services.length;
+
+                const statsGrid = document.getElementById('statsGrid');
+                statsGrid.innerHTML = `
+                    <div class="stat-card">
+                        <div class="stat-number">${operational}</div>
+                        <div class="stat-label">Operational</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number warning">${warning}</div>
+                        <div class="stat-label">Issues</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number down">${down}</div>
+                        <div class="stat-label">Down</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number">${avgUptime.toFixed(1)}%</div>
+                        <div class="stat-label">Avg Uptime</div>
+                    </div>
+                `;
+            }
+
+            renderCharts() {
+                this.renderStatusChart();
+                this.renderUptimeChart();
+            }
+
+            renderStatusChart() {
+                const ctx = document.getElementById('statusChart').getContext('2d');
                 
-                switch (status) {
-                    case 'operational':
-                        element.classList.add('status-operational');
-                        element.innerHTML = 'All Systems Operational';
-                        break;
-                    case 'issues':
-                        element.classList.add('status-issues');
-                        element.innerHTML = 'Some Systems Experiencing Issues';
-                        break;
-                    case 'down':
-                        element.classList.add('status-down');
-                        element.innerHTML = 'System Outage Detected';
-                        break;
-                    default:
-                        element.innerHTML = 'Status Unknown';
+                if (this.statusChart) {
+                    this.statusChart.destroy();
                 }
+
+                const operational = this.services.filter(s => s.status === 'operational').length;
+                const warning = this.services.filter(s => s.status === 'warning' || s.status === 'degraded').length;
+                const down = this.services.filter(s => s.status === 'down').length;
+
+                // Theme-aware colors
+                const textColor = this.isDarkTheme ? '#f5f5f7' : '#1d1d1f';
+
+                this.statusChart = new Chart(ctx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['Operational', 'Issues', 'Down'],
+                        datasets: [{
+                            data: [operational, warning, down],
+                            backgroundColor: ['#228B22', '#fbbf24', '#dc2626'],
+                            borderWidth: 0,
+                            cutout: '65%'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'bottom',
+                                labels: {
+                                    usePointStyle: true,
+                                    padding: 24,
+                                    color: textColor,
+                                    font: {
+                                        size: 14,
+                                        family: '-apple-system, BlinkMacSystemFont, sans-serif'
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+
+            renderUptimeChart() {
+                const ctx = document.getElementById('uptimeChart').getContext('2d');
+                
+                if (this.uptimeChart) {
+                    this.uptimeChart.destroy();
+                }
+
+                const labels = this.services.map(s => s.name);
+                const uptimeData = this.services.map(s => s.uptime_percentage || 0);
+
+                // Theme-aware colors
+                const textColor = this.isDarkTheme ? '#f5f5f7' : '#1d1d1f';
+                const gridColor = this.isDarkTheme ? '#2d2d2f' : '#f0f0f0';
+
+                this.uptimeChart = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: 'Uptime %',
+                            data: uptimeData,
+                            backgroundColor: uptimeData.map(uptime => 
+                                uptime >= 99 ? '#228B22' : 
+                                uptime >= 95 ? '#fbbf24' : '#dc2626'
+                            ),
+                            borderRadius: 8,
+                            borderSkipped: false,
+                        }]
+                    },
+                    options: {
+                        indexAxis: 'y', // Makes it horizontal with labels on Y-axis
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            x: {
+                                beginAtZero: true,
+                                max: 100,
+                                ticks: {
+                                    callback: function(value) {
+                                        return value + '%';
+                                    },
+                                    color: textColor,
+                                    font: {
+                                        size: 12
+                                    }
+                                },
+                                grid: {
+                                    color: gridColor
+                                }
+                            },
+                            y: {
+                                ticks: {
+                                    color: textColor,
+                                    font: {
+                                        size: 11
+                                    }
+                                },
+                                grid: {
+                                    display: false
+                                }
+                            }
+                        },
+                        plugins: {
+                            legend: {
+                                display: false
+                            }
+                        }
+                    }
+                });
             }
 
             renderServices() {
                 const content = document.getElementById('content');
                 
                 if (this.services.length === 0) {
-                    content.innerHTML = '<div class="loading"><p>No services data available</p></div>';
+                    content.innerHTML = '<div class="loading"><div class="loading-spinner"></div><p>No services data available</p></div>';
                     return;
                 }
 
                 const servicesHtml = this.services.map(service => {
+                    const statusClass = this.getStatusClass(service.status);
                     const cardClass = this.getCardClass(service.status);
-                    const badgeClass = this.getBadgeClass(service.status);
                     const statusText = this.getStatusText(service.status);
+                    const lastChecked = service.last_checked ? new Date(service.last_checked).toLocaleString() : 'Unknown';
+                    const serviceId = this.generateServiceId(service.name);
                     
                     return `
-                        <div class="service-card ${cardClass}">
+                        <div class="service-card ${cardClass}" id="${serviceId}">
                             <div class="service-header">
-                                <div class="service-name">${service.name}</div>
-                                <span class="status-badge ${badgeClass}">${statusText}</span>
+                                <div class="service-info">
+                                    <h3>${service.name}</h3>
+                                    <p>${service.description || ''}</p>
+                                </div>
+                                <div class="status-badge ${statusClass}">${statusText}</div>
                             </div>
-                            <div class="service-description">${service.description || ''}</div>
+                            
+                            <div class="service-metrics">
+                                <div class="metric">
+                                    <div class="metric-value">${service.uptime_percentage?.toFixed(1) || '0.0'}%</div>
+                                    <div class="metric-label">Uptime</div>
+                                </div>
+                                <div class="metric">
+                                    <div class="metric-value">${service.response_time || 'N/A'}</div>
+                                    <div class="metric-label">Response</div>
+                                </div>
+                                <div class="metric">
+                                    <div class="metric-value">${this.getStatusIcon(service.status)}</div>
+                                    <div class="metric-label">Status</div>
+                                </div>
+                            </div>
+
                             ${service.incident ? this.renderIncident(service.incident) : ''}
+                            
+                            <div class="last-check">
+                                Last checked: ${lastChecked}
+                            </div>
                         </div>
                     `;
                 }).join('');
 
-                content.innerHTML = `
-                    <div class="services-grid">
-                        ${servicesHtml}
-                    </div>
-                `;
+                content.innerHTML = `<div class="services-grid">${servicesHtml}</div>`;
             }
 
             renderIncident(incident) {
                 return `
-                    <div class="incident-info">
-                        <div class="incident-title">${incident.title}</div>
+                    <div class="incident-alert">
+                        <div class="incident-title">
+                            ⚠️ ${incident.title}
+                        </div>
                         <div class="incident-description">${incident.description}</div>
                     </div>
                 `;
+            }
+
+            getStatusIcon(status) {
+                switch (status) {
+                    case 'operational': return '✅';
+                    case 'warning': case 'degraded': return '⚠️';
+                    case 'down': case 'error': return '🔴';
+                    default: return '❓';
+                }
+            }
+
+            getStatusClass(status) {
+                switch (status) {
+                    case 'down': case 'error': return 'status-error';
+                    case 'degraded': case 'warning': return 'status-warning';
+                    default: return 'status-operational';
+                }
             }
 
             getCardClass(status) {
@@ -385,14 +1084,6 @@
                     case 'down': case 'error': return 'error';
                     case 'degraded': case 'warning': return 'warning';
                     default: return '';
-                }
-            }
-
-            getBadgeClass(status) {
-                switch (status) {
-                    case 'down': case 'error': return 'status-error-badge';
-                    case 'degraded': case 'warning': return 'status-warning-badge';
-                    default: return 'status-operational-badge';
                 }
             }
 
@@ -411,8 +1102,8 @@
                 content.innerHTML = `
                     <div class="error-message">
                         <p>Failed to load status data: ${message}</p>
-                        <button class="refresh-button" onclick="dashboard.loadData()">
-                            Retry
+                        <button class="retry-button" onclick="dashboard.loadData()">
+                            Retry Connection
                         </button>
                     </div>
                 `;
@@ -420,12 +1111,14 @@
 
             updateLastUpdated() {
                 const element = document.getElementById('lastUpdated');
-                element.textContent = `Last updated: ${new Date().toLocaleTimeString()}`;
+                element.textContent = `Updated ${new Date().toLocaleTimeString()}`;
             }
         }
 
-        // Initialize dashboard
-        const dashboard = new StatusDashboard();
+        // Initialize enhanced dashboard
+        document.addEventListener('DOMContentLoaded', function() {
+            const dashboard = new EnhancedStatusDashboard();
+        });
     </script>
 </body>
 </html>
