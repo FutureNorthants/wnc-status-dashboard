@@ -1,6 +1,7 @@
 # Teams Status Dashboard
 
 A real-time system status dashboard designed for Microsoft Teams integration, providing comprehensive monitoring of services through the Wormly API.
+http://systemstatus.eu-west-2.elasticbeanstalk.com/dashboard
 
 ## Features
 
